@@ -1,7 +1,860 @@
 <!DOCTYPE html>
-<html>
-<body style="background:#0d0f12;color:#4e9eff;font-family:monospace;text-align:center;padding:80px">
-  <h1>🚀 Projet ENI Fianarantsoa</h1>
-  <p>Déployé automatiquement via app mobile + Kubernetes</p>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K8s Deploy — ENI Fianarantsoa</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0a0c0f;
+      --bg2: #12151a;
+      --bg3: #1a1f28;
+      --border: #1e2530;
+      --blue: #4e9eff;
+      --green: #2da870;
+      --amber: #e09b30;
+      --purple: #a78bfa;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --mono: 'Courier New', monospace;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* ── Noise overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: .4;
+    }
+
+    /* ── Grid bg ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: .3;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    section,
+    nav,
+    footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      background: rgba(10, 12, 15, .85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-family: var(--mono);
+      font-size: .85rem;
+      color: var(--blue);
+    }
+
+    .nav-logo .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      font-size: .85rem;
+      text-decoration: none;
+      transition: color .2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    /* ── HERO ── */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6rem 1.5rem 4rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: var(--mono);
+      font-size: .75rem;
+      background: rgba(78, 158, 255, .08);
+      border: 1px solid rgba(78, 158, 255, .2);
+      color: var(--blue);
+      padding: .35rem .9rem;
+      border-radius: 999px;
+      margin-bottom: 2rem;
+      animation: fadeUp .6s ease both;
+    }
+
+    h1 {
+      font-size: clamp(2.2rem, 6vw, 4.5rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -.03em;
+      margin-bottom: 1.5rem;
+      animation: fadeUp .6s .1s ease both;
+    }
+
+    h1 span {
+      color: var(--blue);
+    }
+
+    .hero-sub {
+      font-size: clamp(.95rem, 2vw, 1.2rem);
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.7;
+      animation: fadeUp .6s .2s ease both;
+      margin-bottom: 2.5rem;
+    }
+
+    .hero-btns {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeUp .6s .3s ease both;
+      margin-bottom: 4rem;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #0a0c0f;
+      padding: .7rem 1.6rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: .9rem;
+      text-decoration: none;
+      transition: transform .15s, box-shadow .15s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(78, 158, 255, .3);
+    }
+
+    .btn-secondary {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: .7rem 1.6rem;
+      border-radius: 10px;
+      font-size: .9rem;
+      text-decoration: none;
+      transition: border-color .2s;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--blue);
+    }
+
+    /* ── Terminal ── */
+    .terminal {
+      width: 100%;
+      max-width: 680px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      animation: fadeUp .6s .4s ease both;
+      box-shadow: 0 32px 80px rgba(0, 0, 0, .6);
+    }
+
+    .term-bar {
+      background: var(--bg3);
+      padding: .7rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .term-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .term-title {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--muted);
+      margin-left: .5rem;
+    }
+
+    .term-body {
+      padding: 1.2rem 1.4rem;
+      font-family: var(--mono);
+      font-size: .78rem;
+      line-height: 1.9;
+    }
+
+    .t-dim {
+      color: #3d4455;
+    }
+
+    .t-blue {
+      color: var(--blue);
+    }
+
+    .t-green {
+      color: var(--green);
+    }
+
+    .t-amber {
+      color: var(--amber);
+    }
+
+    .t-purple {
+      color: var(--purple);
+    }
+
+    .t-muted {
+      color: var(--muted);
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--blue);
+      vertical-align: middle;
+      animation: blink 1s infinite;
+    }
+
+    /* ── STATS ── */
+    #stats {
+      padding: 5rem 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.8rem;
+      text-align: center;
+      transition: border-color .2s, transform .2s;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .stat-card.visible {
+      animation: fadeUp .5s ease forwards;
+    }
+
+    .stat-card:hover {
+      border-color: var(--blue);
+      transform: translateY(-4px);
+    }
+
+    .stat-n {
+      font-size: 2.4rem;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    .stat-l {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-top: .3rem;
+    }
+
+    /* ── PIPELINE ── */
+    #pipeline {
+      padding: 5rem 1.5rem;
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--blue);
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      margin-bottom: .8rem;
+    }
+
+    .section-title {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      margin-bottom: .8rem;
+    }
+
+    .section-sub {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+      max-width: 560px;
+      margin: 0 auto 3rem;
+    }
+
+    .pipeline {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin-top: 2rem;
+    }
+
+    .pipe-step {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem 1.5rem;
+      text-align: center;
+      min-width: 130px;
+      opacity: 0;
+      transition: border-color .2s;
+    }
+
+    .pipe-step.visible {
+      animation: fadeUp .5s ease forwards;
+    }
+
+    .pipe-step:hover {
+      border-color: var(--blue);
+    }
+
+    .pipe-icon {
+      font-size: 1.6rem;
+      margin-bottom: .5rem;
+    }
+
+    .pipe-name {
+      font-size: .85rem;
+      font-weight: 600;
+    }
+
+    .pipe-desc {
+      color: var(--muted);
+      font-size: .72rem;
+      margin-top: .25rem;
+      font-family: var(--mono);
+    }
+
+    .pipe-arrow {
+      color: var(--border);
+      font-size: 1.4rem;
+      padding: 0 .4rem;
+      opacity: 0;
+    }
+
+    .pipe-arrow.visible {
+      animation: fadeIn .3s ease forwards;
+    }
+
+    /* ── FEATURES ── */
+    #features {
+      padding: 5rem 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 3rem;
+    }
+
+    .feature-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.8rem;
+      opacity: 0;
+      transition: border-color .2s, transform .2s;
+    }
+
+    .feature-card.visible {
+      animation: fadeUp .5s ease forwards;
+    }
+
+    .feature-card:hover {
+      border-color: var(--blue);
+      transform: translateY(-3px);
+    }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: .5rem;
+    }
+
+    .feature-desc {
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.6;
+    }
+
+    /* ── STACK ── */
+    #stack {
+      padding: 5rem 1.5rem;
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .8rem;
+      margin-top: 3rem;
+    }
+
+    .stack-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: var(--mono);
+      font-size: .8rem;
+      color: var(--muted);
+      transition: border-color .2s, color .2s;
+      opacity: 0;
+    }
+
+    .stack-item.visible {
+      animation: fadeUp .4s ease forwards;
+    }
+
+    .stack-item:hover {
+      border-color: var(--blue);
+      color: var(--text);
+    }
+
+    .stack-item .si-icon {
+      font-size: 1.4rem;
+      margin-bottom: .4rem;
+      display: block;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: .83rem;
+      font-family: var(--mono);
+    }
+
+    footer span {
+      color: var(--blue);
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(45, 168, 112, .4);
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(45, 168, 112, 0);
+      }
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes typewriter {
+      from {
+        width: 0;
+      }
+
+      to {
+        width: 100%;
+      }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .pipeline {
+        flex-direction: column;
+      }
+
+      .pipe-arrow {
+        transform: rotate(90deg);
+      }
+
+      .nav-links {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">
+      <div class="dot"></div>
+      k8s-deploy / mon-site-k8s
+    </div>
+    <div class="nav-links">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#features">Fonctionnalités</a>
+      <a href="#stack">Stack</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="badge">
+      <span>●</span> Déployé via App Mobile · Kubernetes · SSL
+    </div>
+    <h1>Automatisation du<br><span>déploiement de services</span><br>via interface mobile</h1>
+    <p class="hero-sub">
+      Projet scolaire L3 — ENI Fianarantsoa.<br>
+      Clone GitHub → Build Docker → Import k3s → Déploiement Kubernetes avec SSL automatique, le tout depuis un
+      téléphone.
+    </p>
+    <div class="hero-btns">
+      <a href="#pipeline" class="btn-primary">Voir le pipeline →</a>
+      <a href="#features" class="btn-secondary">Fonctionnalités</a>
+    </div>
+
+    <!-- Terminal -->
+    <div class="terminal">
+      <div class="term-bar">
+        <div class="term-dot" style="background:#ff5f57"></div>
+        <div class="term-dot" style="background:#febc2e"></div>
+        <div class="term-dot" style="background:#28c840"></div>
+        <span class="term-title">build · ws://api:8000/build/ws/github</span>
+      </div>
+      <div class="term-body" id="term-body">
+        <div class="t-dim">── Pipeline démarré ──────────────────────</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section id="stats">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-n" style="color:var(--blue)">3</div>
+        <div class="stat-l">Couches architecture</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-n" style="color:var(--green)">5</div>
+        <div class="stat-l">Écrans mobile</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-n" style="color:var(--amber)">10+</div>
+        <div class="stat-l">Endpoints REST</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-n" style="color:var(--purple)">SSL</div>
+        <div class="stat-l">Automatique Cert-Manager</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section id="pipeline">
+    <div class="section-label">Flux de déploiement</div>
+    <h2 class="section-title">Du code au service HTTPS</h2>
+    <p class="section-sub">Chaque déploiement suit un pipeline automatique déclenché depuis l'app mobile.</p>
+
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-icon">📱</div>
+        <div class="pipe-name">App Mobile</div>
+        <div class="pipe-desc">React Native</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon">⬇️</div>
+        <div class="pipe-name">Git Clone</div>
+        <div class="pipe-desc">gitpython</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🔨</div>
+        <div class="pipe-name">Docker Build</div>
+        <div class="pipe-desc">Docker SDK</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon">📦</div>
+        <div class="pipe-name">Import k3s</div>
+        <div class="pipe-desc">SSH · ctr</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon">⚙️</div>
+        <div class="pipe-name">K8s Deploy</div>
+        <div class="pipe-desc">kubernetes-client</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🔒</div>
+        <div class="pipe-name">SSL Auto</div>
+        <div class="pipe-desc">Cert-Manager</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div style="text-align:center">
+      <div class="section-label">Fonctionnalités</div>
+      <h2 class="section-title">Ce que le projet fait</h2>
+      <p class="section-sub">Un système complet de déploiement piloté depuis un téléphone Android ou iOS.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(78,158,255,.1)">📊</div>
+        <div class="feature-title">Dashboard temps réel</div>
+        <div class="feature-desc">Visualise l'état de tous les Deployments, pods et certificats SSL du cluster en un
+          coup d'œil.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(45,168,112,.1)">🚀</div>
+        <div class="feature-title">Déploiement en 1 tap</div>
+        <div class="feature-desc">Formulaire mobile → Deployment + Service + Ingress + Certificate créés automatiquement
+          dans Kubernetes.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(167,139,250,.1)">◎</div>
+        <div class="feature-title">Deploy depuis GitHub</div>
+        <div class="feature-desc">Entre l'URL d'un repo GitHub avec un Dockerfile → build, import dans k3s et
+          déploiement automatiques.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(224,155,48,.1)">🔒</div>
+        <div class="feature-title">SSL automatique</div>
+        <div class="feature-desc">Cert-Manager provisionne et renouvelle les certificats TLS automatiquement. HTTPS
+          actif sans aucune config manuelle.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(78,158,255,.1)">📋</div>
+        <div class="feature-title">Logs en streaming</div>
+        <div class="feature-desc">Stream WebSocket des logs de n'importe quel pod en temps réel, avec coloration
+          syntaxique par niveau.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(45,168,112,.1)">🛡️</div>
+        <div class="feature-title">Auth JWT + RBAC</div>
+        <div class="feature-desc">Authentification par token JWT. Le backend tourne avec un ServiceAccount K8s aux
+          droits strictement nécessaires.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack">
+    <div class="section-label">Technologies</div>
+    <h2 class="section-title">Stack technique</h2>
+    <p class="section-sub">Chaque composant a été choisi pour sa légèreté et sa compatibilité avec un environnement
+      local sur VM.</p>
+    <div class="stack-grid">
+      <div class="stack-item"><span class="si-icon">⚛️</span>React Native</div>
+      <div class="stack-item"><span class="si-icon">🐍</span>FastAPI</div>
+      <div class="stack-item"><span class="si-icon">☸️</span>k3s</div>
+      <div class="stack-item"><span class="si-icon">🔀</span>Traefik</div>
+      <div class="stack-item"><span class="si-icon">🔒</span>Cert-Manager</div>
+      <div class="stack-item"><span class="si-icon">🐳</span>Docker</div>
+      <div class="stack-item"><span class="si-icon">🔑</span>JWT / bcrypt</div>
+      <div class="stack-item"><span class="si-icon">🔌</span>WebSocket</div>
+      <div class="stack-item"><span class="si-icon">📦</span>Zustand</div>
+      <div class="stack-item"><span class="si-icon">🌐</span>nip.io</div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>Projet scolaire · <span>ENI Fianarantsoa</span> · L3 Administration Système et Réseau</p>
+    <p style="margin-top:.5rem">Déployé via <span>app mobile</span> → <span>FastAPI</span> → <span>k3s</span> →
+      <span>Cert-Manager</span></p>
+  </footer>
+
+  <script>
+    // ── Terminal typewriter ──────────────────────────────────────────
+    const lines = [
+      { text: '[clone] Clonage de github.com/nyaina/mon-site-k8s...', cls: 't-blue', delay: 400 },
+      { text: '[clone] ✓ Repo cloné dans /tmp/k8s-builds/a3f2c1d8', cls: 't-green', delay: 900 },
+      { text: '[build] Construction de l\'image mon-site:latest...', cls: 't-blue', delay: 1400 },
+      { text: '[build] Step 1/3 : FROM nginx:alpine', cls: 't-muted', delay: 1900 },
+      { text: '[build] Step 2/3 : COPY index.html ...', cls: 't-muted', delay: 2300 },
+      { text: '[build] Step 3/3 : EXPOSE 80', cls: 't-muted', delay: 2700 },
+      { text: '[build] Successfully built a4f8c2b1e3d9', cls: 't-green', delay: 3200 },
+      { text: '[build] ✓ Image mon-site:latest construite', cls: 't-green', delay: 3700 },
+      { text: '[import] Import dans k3s (192.168.1.242)...', cls: 't-amber', delay: 4200 },
+      { text: '[import] ✓ Image importée avec succès', cls: 't-green', delay: 5500 },
+      { text: '[deploy] Deployment + Service + Ingress créés', cls: 't-purple', delay: 6000 },
+      { text: '[ssl] ✓ Certificat TLS en cours de provisionnement', cls: 't-amber', delay: 6500 },
+      { text: '[done] ✓ mon-site déployé — https://mon-site.192.168.1.242.nip.io', cls: 't-green', delay: 7200 },
+    ];
+
+    const body = document.getElementById('term-body');
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+
+    lines.forEach(({ text, cls, delay }) => {
+      setTimeout(() => {
+        const div = document.createElement('div');
+        div.className = cls;
+        div.textContent = text;
+        body.appendChild(div);
+        body.scrollTop = body.scrollHeight;
+      }, delay);
+    });
+
+    // Cursor at end
+    setTimeout(() => {
+      const div = document.createElement('div');
+      div.className = 't-dim';
+      div.appendChild(document.createTextNode('$ '));
+      div.appendChild(cursor);
+      body.appendChild(div);
+    }, 7800);
+
+    // ── Intersection Observer pour les animations ────────────────────
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i * 80);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll(
+      '.stat-card, .pipe-step, .pipe-arrow, .feature-card, .stack-item'
+    ).forEach(el => observer.observe(el));
+  </script>
 </body>
+
 </html>
